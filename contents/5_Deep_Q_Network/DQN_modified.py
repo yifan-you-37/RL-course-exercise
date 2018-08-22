@@ -117,18 +117,18 @@ class DeepQNetwork:
     def learn(self):
         if (self.learn_step_counter % self.replace_target_iter == 0):
             self.sess.run(self.update_frozen_parameters)
-        random_samples = self.memory[np.random.randint(0, self.memory_counter, min(self.memory_counter,self.batch_size))]
+        random_samples = self.memory[np.random.randint(0, min(self.memory_size, self.memory_counter), min(self.memory_counter,self.batch_size))]
         _, loss = self.sess.run([self.train, self.loss], feed_dict={
             self.s: random_samples[:,:self.n_features],
             self.a: random_samples[:, self.n_features],
             self.r: random_samples[:, self.n_features + 1],
-            self.a: random_samples[:, -self.n_features:]
+            self.s_: random_samples[:, -self.n_features:]
         })
         self.cost_his.append(loss)
 
         self.learn_step_counter += 1
-        
-        self.epsilon = min(self.epsilon_max, self.epsilon + self.epsilon_increment)
+        if(self.epsilon_increment is not None):
+            self.epsilon = min(self.epsilon_max, self.epsilon + self.epsilon_increment)
 
 
     def plot_cost(self):
