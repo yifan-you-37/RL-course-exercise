@@ -57,7 +57,7 @@ class DeepQNetwork:
         self.collections_target = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='target_net')
 
         with tf.variable_scope('update_frozen_parameters'):
-            self.update_frozen_parameters = tf.assign(self.collections_target, self.collections_eval)
+            self.update_frozen_parameters = [tf.assign(target, ev) for target, ev in zip(self.collections_target, self.collections_eval)]
 
         self.cost_his = []
 
@@ -66,8 +66,8 @@ class DeepQNetwork:
         # ------------------ all inputs ------------------------
         self.s = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features])
         self.s_ = tf.placeholder(dtype=tf.float32, shape=[None, self.n_features])
-        self.r = tf.placeholder(dtype=tf.float32, shape=[None, 1])
-        self.a = tf.placeholder(dtype=tf.int16, shape=[None, self.n_actions])
+        self.r = tf.placeholder(dtype=tf.float32, shape=[None, ])
+        self.a = tf.placeholder(dtype=tf.int32, shape=[None, ])
 
         w_initializer = tf.initializers.random_uniform(0, 0.3)
         b_initializer = tf.initializers.constant(0.1)
@@ -86,7 +86,7 @@ class DeepQNetwork:
             self.q_target = tf.stop_gradient(q_target)
 
         with tf.variable_scope('q_eval_reduced'):
-            a_index = tf.stack([tf.convert_to_tensor(np.arange(0, tf.shape(self.a)[0], 1.0)), self.a], axis=1)
+            a_index = tf.stack([tf.range(tf.size(self.a)), self.a], axis=1)
             self.q_eval_reduced = tf.gather_nd(self.q_eval, a_index)
         
         with tf.variable_scope("loss"):
@@ -108,7 +108,7 @@ class DeepQNetwork:
     def choose_action(self, observation):
         # to have batch dimension when feed into tf placeholder
         if(np.random.uniform() < self.epsilon):
-            observation = observation[:, np.newaxis]
+            observation = observation[np.newaxis, :]
             q_cur = self.sess.run(self.q_eval, feed_dict={self.s: observation})
             return np.argmax(q_cur)
         else:
@@ -117,7 +117,7 @@ class DeepQNetwork:
     def learn(self):
         if (self.learn_step_counter % self.replace_target_iter == 0):
             self.sess.run(self.update_frozen_parameters)
-        random_samples = self.memory[np.random.randint(0, self.memory_counter, min(self.memory_counter.shape[0],self.batch_size))]
+        random_samples = self.memory[np.random.randint(0, self.memory_counter, min(self.memory_counter,self.batch_size))]
         _, loss = self.sess.run([self.train, self.loss], feed_dict={
             self.s: random_samples[:,:self.n_features],
             self.a: random_samples[:, self.n_features],
