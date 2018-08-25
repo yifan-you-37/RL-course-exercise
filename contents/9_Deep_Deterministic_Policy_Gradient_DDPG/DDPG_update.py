@@ -15,7 +15,8 @@ import numpy as np
 import gym
 import time
 
-
+np.random.seed(1)
+tf.set_random_seed(1)
 #####################  hyper parameters  ####################
 
 MAX_EPISODES = 200
@@ -26,8 +27,8 @@ GAMMA = 0.9     # reward discount
 TAU = 0.01      # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
-
-RENDER = False
+OUTPUT_GRAPH=True
+RENDER = True
 ENV_NAME = 'Pendulum-v0'
 
 ###############################  DDPG  ####################################
@@ -71,7 +72,8 @@ class DDPG(object):
         self.atrain = tf.train.AdamOptimizer(LR_A).minimize(a_loss, var_list=self.ae_params)
 
         self.sess.run(tf.global_variables_initializer())
-
+        if OUTPUT_GRAPH:
+                    tf.summary.FileWriter("logs_ori/", self.sess.graph)
     def choose_action(self, s):
         return self.sess.run(self.a, {self.S: s[np.newaxis, :]})[0]
 
@@ -128,7 +130,7 @@ for i in range(MAX_EPISODES):
     s = env.reset()
     ep_reward = 0
     for j in range(MAX_EP_STEPS):
-        if RENDER:
+        if RENDER and i>=100:
             env.render()
 
         # Add exploration noise
